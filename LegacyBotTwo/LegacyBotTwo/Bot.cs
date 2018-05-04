@@ -1,16 +1,16 @@
-﻿using Discord;
-using Discord.WebSocket;
-using System;
+﻿using System;
 using System.Threading.Tasks;
-
-// Eventually I'll move most of the functions over here, since having it all
-// in main just seems silly
+using Microsoft.Extensions.DependencyInjection;
+using Discord;
+using Discord.WebSocket;
+using LegacyBotTwo.Services;
 
 namespace LegacyBotTwo
 {
     public class Bot
     {
-        private DiscordSocketClient client;
+        DiscordSocketClient client;
+        private Logger logger;
 
         public Bot()
         {
@@ -19,18 +19,20 @@ namespace LegacyBotTwo
 
         public async Task MainAsync()
         {
-            client = new DiscordSocketClient(new DiscordSocketConfig
-            {
-                LogLevel = LogSeverity.Info
-            });
-            string path = System.AppDomain.CurrentDomain.BaseDirectory;
+            var config = new DiscordSocketConfig();
+            logger = new Logger();
+            string token = getToken();
+
+            config.MessageCacheSize = 100;
+            config.LogLevel = LogSeverity.Info;
+            client = new DiscordSocketClient(config);
+
+            // Logs in
+            await client.LoginAsync(TokenType.Bot, token);
+            await client.StartAsync();
 
             client.Log += Log;
             client.MessageReceived += MessageReceived;
-
-            string token = System.IO.File.ReadAllText(path + "/token.txt");
-            await client.LoginAsync(TokenType.Bot, token);
-            await client.StartAsync();
 
             await Task.Delay(-1);
         }
@@ -43,8 +45,14 @@ namespace LegacyBotTwo
 
         private async Task MessageReceived(SocketMessage message)
         {
-            if (message.Content == "!ping")
-                await message.Channel.SendMessageAsync("Pong!");
+            logger.logMessage(message);
+        }
+
+        private string getToken()
+        {
+            string path = System.AppDomain.CurrentDomain.BaseDirectory;
+            string token = System.IO.File.ReadAllText(path + "/token.txt");
+            return token;
         }
     }
 }
